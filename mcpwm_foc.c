@@ -4477,13 +4477,17 @@ static void run_pid_control_speed(float dt, volatile motor_all_state_t *motor) {
 
 	// Optionally disable braking
 	if (!conf_now->s_pid_allow_braking) {
-		if (rpm > 20.0 && output < 0.0) {
-			output = 0.0;
-		}
+		// Actually disable accelerating for the ebike generator :)
+		utils_truncate_number(&output, -1.0, 0.0);
+		utils_truncate_number((float*)&motor->m_speed_i_term, -1.0, 0.0);
+		
+		// if (rpm > 20.0 && output < 0.0) {
+		// 	output = 0.0;
+		// }
 
-		if (rpm < -20.0 && output > 0.0) {
-			output = 0.0;
-		}
+		// if (rpm < -20.0 && output > 0.0) {
+		// 	output = 0.0;
+		// }
 	}
 
 	motor->m_iq_set = output * conf_now->l_current_max * conf_now->l_current_max_scale;

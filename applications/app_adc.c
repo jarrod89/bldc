@@ -156,6 +156,32 @@ static THD_FUNCTION(adc_thread, arg) {
 			break;
 		}
 
+		// Add generator current (CoilChain addition)
+		#define GEN_MAX_AMP (30/10)
+		
+		if (config.ctrl_type == ADC_CTRL_TYPE_CURRENT) { // only run on motor ecu
+			can_status_msg *msg = comm_can_get_status_msg_index(0);
+			float gen = 0;
+			float gen_rpm = 0;
+			if (msg->id >= 0 && UTILS_AGE_S(msg->rx_time) < MAX_CAN_AGE) {
+				gen = msg->current;
+				gen_rpm = msg->rpm;
+			}
+			
+			// gen = utils_map(gen, config.voltage2_start, config.voltage2_end, 0.0, 1.0);
+			pwr += (gen / GEN_MAX_AMP);
+			// Filter RPM to avoid glitches
+			static float gen_rpm_filtered = 0.0;
+			//UTILS_LP_MOVING_AVG_APPROX(gen_rpm_filtered, gen_rpm, RPM_FILTER_SAMPLES);
+			// pwr = pwr * utils_map(gen_rpm_filtered, 100, 10000, 0.1, 1);
+			static float rpm_filtered = 0.0;
+			UTILS_LP_MOVING_AVG_APPROX(rpm_filtered, mc_interface_get_rpm(), RPM_FILTER_SAMPLES);
+			pwr = pwr * utils_map(rpm_filtered, 100, 10000, 1, 0.1);
+			
+			read_voltage2 = pwr;
+			//read_voltage = pwr;
+		}
+
 		// Truncate the read voltage
 		utils_truncate_number(&pwr, 0.0, 1.0);
 
@@ -176,7 +202,7 @@ static THD_FUNCTION(adc_thread, arg) {
 #ifdef HW_HAS_BRAKE_OVERRIDE
 		hw_brake_override(&brake);
 #endif
-		read_voltage2 = brake;
+		// read_voltage2 = brake;
 
 		// Optionally apply a filter
 		static float filter_val_2 = 0.0;
