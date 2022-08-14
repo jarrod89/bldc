@@ -157,7 +157,7 @@ static THD_FUNCTION(adc_thread, arg) {
 		}
 
 		// Add generator current (CoilChain addition)
-		#define GEN_MAX_AMP (30/10)
+		#define GEN_MAX_AMP (30)
 		
 		if (config.ctrl_type == ADC_CTRL_TYPE_CURRENT) { // only run on motor ecu
 			can_status_msg *msg = comm_can_get_status_msg_index(0);
@@ -169,14 +169,14 @@ static THD_FUNCTION(adc_thread, arg) {
 			}
 			
 			// gen = utils_map(gen, config.voltage2_start, config.voltage2_end, 0.0, 1.0);
-			pwr += (gen / GEN_MAX_AMP);
+			pwr += utils_map(gen, 0.15, -GEN_MAX_AMP, 0, 1);
 			// Filter RPM to avoid glitches
 			static float gen_rpm_filtered = 0.0;
 			//UTILS_LP_MOVING_AVG_APPROX(gen_rpm_filtered, gen_rpm, RPM_FILTER_SAMPLES);
 			// pwr = pwr * utils_map(gen_rpm_filtered, 100, 10000, 0.1, 1);
 			static float rpm_filtered = 0.0;
 			UTILS_LP_MOVING_AVG_APPROX(rpm_filtered, mc_interface_get_rpm(), RPM_FILTER_SAMPLES);
-			pwr = pwr * utils_map(rpm_filtered, 100, 10000, 1, 0.1);
+			pwr = pwr * utils_map(rpm_filtered, 0, 10000, 1, 0.1);
 			
 			read_voltage2 = pwr;
 			//read_voltage = pwr;
